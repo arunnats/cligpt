@@ -81,23 +81,27 @@ void setupEnv()
     file << "USER_NAME=User\n";
     file.close();
 
-    std::cout << "Welcome to CLI GPT!\n"
+    std::cout << GREEN
+              << "Welcome to CLI GPT!\n"
               << "This is a command-line interface for interacting with ChatGPT.\n"
               << "You'll need an OpenAI API key to use this app.\n\n"
               << "Flags:\n"
               << "  -help        Show this help message\n"
               << "  -key         Manage your API key (view, update, remove)\n"
-              << "  -customize   Customize ChatGPT's name, personality, or your name\n";
+              << "  -customize   Customize ChatGPT's name, personality, or your name\n"
+              << RESET;
 }
 
 void showHelp()
 {
-    std::cout << "CLI GPT - Command Line Interface for ChatGPT\n"
+    std::cout << GREEN
+              << "CLI GPT - Command Line Interface for ChatGPT\n"
               << "Usage:\n"
               << "  ./cligpt            Start the app\n"
               << "  ./cligpt -key       Manage your API key\n"
               << "  ./cligpt -customize Customize ChatGPT's settings\n"
-              << "  ./cligpt -help      Show this help message\n";
+              << "  ./cligpt -help      Show this help message\n"
+              << RESET;
 }
 
 void customize()
@@ -105,12 +109,13 @@ void customize()
     int choice;
     do
     {
-        std::cout << "Customize Settings:\n"
+        std::cout << GREEN << "Customize Settings:\n"
                   << "1. ChatGPT's Name\n"
                   << "2. ChatGPT's Personality\n"
                   << "3. Your Name\n"
                   << "4. Continue to App\n"
-                  << "Enter your choice: ";
+                  << "Enter your choice: \n"
+                  << RESET;
         std::cin >> choice;
         std::cin.ignore();
 
@@ -154,6 +159,12 @@ void customize()
         {
             mainLoop();
         }
+        else
+        {
+            std::cout << GREEN << "\nInvalid Choice. Try again \n"
+                      << RESET;
+            break;
+        }
 
     } while (1);
 }
@@ -164,12 +175,15 @@ void manageAPIKey()
     std::string apiKey = readEnv("GPT_KEY");
 
     int choice;
-    std::cout << "API Key Management:\n"
+    std::cout << GREEN
+              << "API Key Management:\n"
               << "1. View Key\n"
               << "2. Update Key\n"
               << "3. Remove Key\n"
               << "4. Continue to App\n"
-              << "Enter your choice: ";
+              << "Enter your choice: "
+              << RESET;
+
     std::cin >> choice;
     std::cin.ignore();
 
@@ -311,24 +325,7 @@ void mainLoop()
 
         if (prompt == "exit")
         {
-            break;
-        }
-
-        std::string response = sendToChatGPT(prompt, apiKey, personality);
-        processResponse(response, prompt, gptName);
-    }
-    std::cout << CYAN << "Welcome to " << gptName << "! Enter 'exit' to quit.\n"
-              << RESET;
-    while (true)
-    {
-        std::cout << CYAN << "\n"
-                  << userName << ": " << RESET;
-        std::string prompt;
-        std::getline(std::cin, prompt);
-
-        if (prompt == "exit")
-        {
-            break;
+            exit(0);
         }
 
         std::string response = sendToChatGPT(prompt, apiKey, personality);
