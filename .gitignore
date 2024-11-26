@@ -32,4 +32,4 @@
 *.out
 *.app
 
-.env
+*.env
