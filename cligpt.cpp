@@ -4,6 +4,7 @@
 #include <string>
 #include "nlohmann/json.hpp"
 #include <fstream>
+#include <sys/stat.h>
 #include "cligpt.h"
 
 using json = nlohmann::json;
@@ -24,6 +25,12 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::stri
     return totalSize;
 }
 
+std::string getEnvFilePath()
+{
+    std::string homeDir = getenv("HOME");
+    return homeDir + "/.cligpt/.env";
+}
+
 // Read environment variables from .env file
 std::string readEnv(const std::string &key, const std::string &defaultValue = "")
 {
@@ -42,8 +49,9 @@ std::string readEnv(const std::string &key, const std::string &defaultValue = ""
 // Write or update environment variables in .env file
 void writeEnv(const std::string &key, const std::string &value)
 {
-    std::ifstream fileIn(".env");
-    std::ofstream fileOut(".env.temp");
+    std::string filePath = getEnvFilePath();
+    std::ifstream fileIn(filePath);
+    std::ofstream fileOut(filePath + ".temp");
     bool updated = false;
 
     std::string line;
@@ -67,29 +75,27 @@ void writeEnv(const std::string &key, const std::string &value)
 
     fileIn.close();
     fileOut.close();
-    std::remove(".env");
-    std::rename(".env.temp", ".env");
+    std::remove(filePath.c_str());
+    std::rename((filePath + ".temp").c_str(), filePath.c_str());
 }
 
 // Setup .env file with default values
 void setupEnv()
 {
-    std::ofstream file(".env");
+    std::string envDir = getenv("HOME");
+    envDir += "/.cligpt";
+
+    // Create the directory if it doesn't exist
+    mkdir(envDir.c_str(), 0755);
+
+    std::ofstream file(envDir + "/.env");
     file << "GPT_KEY=\n";
     file << "GPT_NAME=ChatGPT\n";
     file << "PERSONALITY=Friendly AI\n";
     file << "USER_NAME=User\n";
     file.close();
 
-    std::cout << GREEN
-              << "Welcome to CLI GPT!\n"
-              << "This is a command-line interface for interacting with ChatGPT.\n"
-              << "You'll need an OpenAI API key to use this app.\n\n"
-              << "Flags:\n"
-              << "  -help        Show this help message\n"
-              << "  -key         Manage your API key (view, update, remove)\n"
-              << "  -customize   Customize ChatGPT's name, personality, or your name\n"
-              << RESET;
+    std::cout << "Environment file created at: " << envDir + "/.env" << "\n";
 }
 
 void showHelp()
@@ -97,10 +103,10 @@ void showHelp()
     std::cout << GREEN
               << "CLI GPT - Command Line Interface for ChatGPT\n"
               << "Usage:\n"
-              << "  ./cligpt            Start the app\n"
-              << "  ./cligpt -key       Manage your API key\n"
-              << "  ./cligpt -customize Customize ChatGPT's settings\n"
-              << "  ./cligpt -help      Show this help message\n"
+              << "  cligpt            Start the app\n"
+              << "  cligpt -key       Manage your API key\n"
+              << "  cligpt -customize Customize ChatGPT's settings\n"
+              << "  cligpt -help      Show this help message\n"
               << RESET;
 }
 
@@ -311,7 +317,8 @@ void mainLoop()
 
     if (apiKey.empty())
     {
-        std::cout << "No API Key found! Use './cligpt -key' to add one.\n";
+        std::cout << "No API Key found! Use 'cligpt -key' to add one.\n";
+        exit(0);
     }
 
     std::cout << CYAN << "Welcome to " << gptName << "! " << "Enter 'exit' to quit.\n"
