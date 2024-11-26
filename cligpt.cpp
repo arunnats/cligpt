@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <string>
 #include <curl/curl.h>
 #include "nlohmann/json.hpp"
 
@@ -11,6 +13,76 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::stri
     size_t totalSize = size * nmemb;
     out->append((char *)contents, totalSize);
     return totalSize;
+}
+
+// Function to load API key from .env
+std::string loadApiKey()
+{
+    std::ifstream envFile(".env");
+    std::string line;
+
+    if (envFile.is_open())
+    {
+        std::getline(envFile, line);
+        envFile.close();
+    }
+    return line;
+}
+
+// Function to save API key to .env
+void saveApiKey(const std::string &apiKey)
+{
+    std::ofstream envFile(".env");
+    if (envFile.is_open())
+    {
+        envFile << apiKey;
+        envFile.close();
+    }
+}
+
+// Function to manage API key with the -key flag
+void manageApiKey()
+{
+    std::string currentKey = loadApiKey();
+    int choice;
+
+    std::cout << "API Key Management:\n";
+    std::cout << "1) Remove API Key\n";
+    std::cout << "2) Update API Key\n";
+    std::cout << "3) View API Key\n";
+    std::cout << "Enter your choice: ";
+    std::cin >> choice;
+    std::cin.ignore(); // Ignore leftover newline
+
+    switch (choice)
+    {
+    case 1: // Remove API Key
+        saveApiKey("");
+        std::cout << "API key removed.\n";
+        break;
+    case 2: // Update API Key
+    {
+        std::string newKey;
+        std::cout << "Enter new API key: ";
+        std::getline(std::cin, newKey);
+        saveApiKey(newKey);
+        std::cout << "API key updated.\n";
+        break;
+    }
+    case 3: // View API Key
+        if (currentKey.empty())
+        {
+            std::cout << "No API key found.\n";
+        }
+        else
+        {
+            std::cout << "Current API key: " << currentKey.substr(0, 5) << "*****" << currentKey.substr(currentKey.size() - 3) << "\n";
+        }
+        break;
+    default:
+        std::cout << "Invalid choice.\n";
+    }
+    exit(0);
 }
 
 std::string sendToChatGPT(const std::string &prompt, const std::string &apiKey)
@@ -66,12 +138,25 @@ void processResponse(const std::string &response)
     }
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    std::string apiKey;
-    std::cout << "Enter your OpenAI API Key: ";
-    std::cin >> apiKey;
+    // Check for the -key flag
+    if (argc > 1 && std::string(argv[1]) == "-key")
+    {
+        manageApiKey();
+    }
 
+    std::string apiKey = loadApiKey();
+
+    // If no API key or key is invalid, prompt user for input
+    while (apiKey.empty())
+    {
+        std::cout << "No API key found. Please enter your OpenAI API key: ";
+        std::getline(std::cin, apiKey);
+        saveApiKey(apiKey);
+    }
+
+    // Main loop
     while (true)
     {
         std::string prompt;
