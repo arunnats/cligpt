@@ -31,13 +31,30 @@ std::string getEnvFilePath()
     return homeDir + "/.cligpt/.env";
 }
 
+std::string trim(const std::string &str)
+{
+    size_t first = str.find_first_not_of(" \t");
+    size_t last = str.find_last_not_of(" \t");
+    return (first == std::string::npos || last == std::string::npos)
+               ? ""
+               : str.substr(first, (last - first + 1));
+}
+
 // Read environment variables from .env file
 std::string readEnv(const std::string &key, const std::string &defaultValue = "")
 {
-    std::ifstream file(".env");
+    std::string filePath = getEnvFilePath();
+    std::ifstream file(filePath);
+    if (!file)
+    {
+        std::cerr << "Error: Unable to open .env file at " << filePath << "\n";
+        return defaultValue;
+    }
+
     std::string line;
     while (std::getline(file, line))
     {
+        line = trim(line);
         if (line.find(key + "=") == 0)
         {
             return line.substr(key.length() + 1);
@@ -305,7 +322,8 @@ void processResponse(const std::string &response, const std::string &prompt, con
 void mainLoop()
 {
     // Read values from .env or initialize defaults
-    if (!std::ifstream(".env"))
+    std::string filePath = getEnvFilePath();
+    if (!std::ifstream(filePath))
     {
         setupEnv();
     }
