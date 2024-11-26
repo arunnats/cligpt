@@ -23,6 +23,7 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::stri
     return totalSize;
 }
 
+// Read environment variables from .env file
 std::string readEnv(const std::string &key, const std::string &defaultValue = "")
 {
     std::ifstream file(".env");
@@ -37,6 +38,7 @@ std::string readEnv(const std::string &key, const std::string &defaultValue = ""
     return defaultValue;
 }
 
+// Write or update environment variables in .env file
 void writeEnv(const std::string &key, const std::string &value)
 {
     std::ifstream fileIn(".env");
@@ -48,18 +50,18 @@ void writeEnv(const std::string &key, const std::string &value)
     {
         if (line.find(key + "=") == 0)
         {
-            fileOut << key << "=" << value << std::endl;
+            fileOut << key << "=" << value << "\n";
             updated = true;
         }
         else
         {
-            fileOut << line << std::endl;
+            fileOut << line << "\n";
         }
     }
 
     if (!updated)
     {
-        fileOut << key << "=" << value << std::endl;
+        fileOut << key << "=" << value << "\n";
     }
 
     fileIn.close();
@@ -68,6 +70,7 @@ void writeEnv(const std::string &key, const std::string &value)
     std::rename(".env.temp", ".env");
 }
 
+// Setup .env file with default values
 void setupEnv()
 {
     std::ofstream file(".env");
@@ -149,43 +152,10 @@ void customize()
     } while (choice != 4);
 }
 
-// Get the stored API Key
-std::string getAPIKey()
-{
-    const std::string envFile = ".env";
-    std::ifstream file(envFile);
-    std::string apiKey;
-
-    if (file.is_open())
-    {
-        std::getline(file, apiKey);
-        file.close();
-    }
-
-    if (apiKey.empty())
-    {
-        std::cout << "No API Key found. Please enter your OpenAI API Key: ";
-        std::cin >> apiKey;
-        std::ofstream outFile(envFile);
-        outFile << apiKey;
-        outFile.close();
-    }
-
-    return apiKey;
-}
-
 // Menu to manage the key
 void manageAPIKey()
 {
-    const std::string envFile = ".env";
-    std::ifstream file(envFile);
-    std::string apiKey;
-
-    if (file.is_open())
-    {
-        std::getline(file, apiKey);
-        file.close();
-    }
+    std::string apiKey = readEnv("GPT_KEY");
 
     int choice;
     std::cout << "API Key Management:\n";
@@ -203,26 +173,23 @@ void manageAPIKey()
         }
         else
         {
-            std::cout << "API Key: " << apiKey.substr(0, 5) << "*****" << apiKey.substr(apiKey.length() - 3) << std::endl;
+            std::cout << "API Key: " << apiKey.substr(0, 5) << "*****" << apiKey.substr(apiKey.length() - 3) << "\n";
         }
     }
     else if (choice == 2)
     {
         std::cout << "Enter new API Key: ";
         std::cin >> apiKey;
-        std::ofstream outFile(envFile);
-        outFile << apiKey;
-        outFile.close();
+        writeEnv("GPT_KEY", apiKey);
     }
     else if (choice == 3)
     {
-        std::ofstream outFile(envFile);
-        outFile.close();
+        writeEnv("GPT_KEY", "");
         std::cout << "API Key removed.\n";
     }
 }
 
-// Api call to openAI
+// API call to OpenAI
 std::string sendToChatGPT(const std::string &prompt, const std::string &apiKey, const std::string &personality)
 {
     const std::string apiUrl = "https://api.openai.com/v1/chat/completions";
@@ -262,7 +229,7 @@ std::string sendToChatGPT(const std::string &prompt, const std::string &apiKey, 
         CURLcode res = curl_easy_perform(curl);
         if (res != CURLE_OK)
         {
-            std::cerr << "Curl request failed: " << curl_easy_strerror(res) << std::endl;
+            std::cerr << "Curl request failed: " << curl_easy_strerror(res) << "\n";
         }
 
         curl_easy_cleanup(curl);
@@ -273,13 +240,13 @@ std::string sendToChatGPT(const std::string &prompt, const std::string &apiKey, 
 }
 
 // Add responses to message history
-void processResponse(const std::string &response, const std::string &prompt)
+void processResponse(const std::string &response, const std::string &prompt, const std::string &gptName)
 {
     try
     {
         auto jsonResponse = json::parse(response);
         std::string content = jsonResponse["choices"][0]["message"]["content"];
-        std::cout << "\nChatGPT: " << content << std::endl;
+        std::cout << GREEN << "\nChatGPT: " << content << "\n";
 
         // Store the new question-response pair in memory
         messageHistory.push_back({prompt, content});
@@ -292,7 +259,7 @@ void processResponse(const std::string &response, const std::string &prompt)
     }
     catch (const std::exception &e)
     {
-        std::cerr << "Error parsing response: " << e.what() << std::endl;
+        std::cerr << "Error parsing response: " << e.what() << "\n";
     }
 }
 
@@ -305,49 +272,49 @@ int main(int argc, char *argv[])
         if (flag == "-help")
         {
             showHelp();
-            return 0;
         }
         else if (flag == "-key")
         {
             manageAPIKey();
-            return 0;
         }
         else if (flag == "-customize")
         {
             customize();
-            return 0;
         }
-    }
-
-    // Initialize .env if not found
-    std::ifstream file(".env");
-    if (!file)
-    {
-        setupEnv();
         return 0;
     }
 
-    // Load settings
+    // Read values from .env or initialize defaults
+    if (!std::ifstream(".env"))
+    {
+        setupEnv();
+    }
+
     std::string apiKey = readEnv("GPT_KEY");
     std::string gptName = readEnv("GPT_NAME", "ChatGPT");
     std::string personality = readEnv("PERSONALITY", "Friendly AI");
-    std::string userName = readEnv("USER_NAME", "User");
 
-    std::cin.ignore(); // Clear input buffer
+    if (apiKey.empty())
+    {
+        std::cout << "No API Key found! Use './cligpt -key' to add one.\n";
+        return 0;
+    }
 
-    // Start interaction
-    std::cout << CYAN << userName << RESET << ": Hello! Type 'exit' to quit.\n";
+    std::cout << CYAN << "Welcome to " << gptName << "!\n"
+              << RESET;
     while (true)
     {
+        std::cout << CYAN << "\nYou: " << RESET;
         std::string prompt;
-        std::cout << CYAN << userName << ": " << RESET;
         std::getline(std::cin, prompt);
 
         if (prompt == "exit")
+        {
             break;
+        }
 
         std::string response = sendToChatGPT(prompt, apiKey, personality);
-        std::cout << GREEN << gptName << ": " << RESET << response << "\n";
+        processResponse(response, prompt, gptName);
     }
 
     return 0;
