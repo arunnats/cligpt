@@ -246,7 +246,8 @@ void processResponse(const std::string &response, const std::string &prompt, con
     {
         auto jsonResponse = json::parse(response);
         std::string content = jsonResponse["choices"][0]["message"]["content"];
-        std::cout << GREEN << "\nChatGPT: " << content << "\n";
+        std::cout << GREEN << "\n"
+                  << gptName << ": " << RESET << content << "\n";
 
         // Store the new question-response pair in memory
         messageHistory.push_back({prompt, content});
@@ -292,6 +293,7 @@ int main(int argc, char *argv[])
 
     std::string apiKey = readEnv("GPT_KEY");
     std::string gptName = readEnv("GPT_NAME", "ChatGPT");
+    std::string userName = readEnv("USER_NAME", "User");
     std::string personality = readEnv("PERSONALITY", "Friendly AI");
 
     if (apiKey.empty())
@@ -300,11 +302,12 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    std::cout << CYAN << "Welcome to " << gptName << "!\n"
+    std::cout << CYAN << "Welcome to " << gptName << "! " << "Enter 'exit' to quit.\n"
               << RESET;
     while (true)
     {
-        std::cout << CYAN << "\nYou: " << RESET;
+        std::cout << CYAN << "\n"
+                  << userName << ": " << RESET;
         std::string prompt;
         std::getline(std::cin, prompt);
 
