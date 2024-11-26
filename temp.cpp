@@ -1,10 +1,11 @@
 #include <iostream>
-#include <curl/curl.h>
-#include <deque>
-#include <string>
-#include "nlohmann/json.hpp"
 #include <fstream>
+#include <string>
+#include <deque>
+#include <curl/curl.h>
+#include "nlohmann/json.hpp"
 
+// For convenience
 using json = nlohmann::json;
 
 // Constants for text colors
@@ -149,80 +150,6 @@ void customize()
     } while (choice != 4);
 }
 
-// Get the stored API Key
-std::string getAPIKey()
-{
-    const std::string envFile = ".env";
-    std::ifstream file(envFile);
-    std::string apiKey;
-
-    if (file.is_open())
-    {
-        std::getline(file, apiKey);
-        file.close();
-    }
-
-    if (apiKey.empty())
-    {
-        std::cout << "No API Key found. Please enter your OpenAI API Key: ";
-        std::cin >> apiKey;
-        std::ofstream outFile(envFile);
-        outFile << apiKey;
-        outFile.close();
-    }
-
-    return apiKey;
-}
-
-// Menu to manage the key
-void manageAPIKey()
-{
-    const std::string envFile = ".env";
-    std::ifstream file(envFile);
-    std::string apiKey;
-
-    if (file.is_open())
-    {
-        std::getline(file, apiKey);
-        file.close();
-    }
-
-    int choice;
-    std::cout << "API Key Management:\n";
-    std::cout << "1. View Key\n";
-    std::cout << "2. Update Key\n";
-    std::cout << "3. Remove Key\n";
-    std::cout << "Enter your choice: ";
-    std::cin >> choice;
-
-    if (choice == 1)
-    {
-        if (apiKey.empty())
-        {
-            std::cout << "No API Key found.\n";
-        }
-        else
-        {
-            std::cout << "API Key: " << apiKey.substr(0, 5) << "*****" << apiKey.substr(apiKey.length() - 3) << std::endl;
-        }
-    }
-    else if (choice == 2)
-    {
-        std::cout << "Enter new API Key: ";
-        std::cin >> apiKey;
-        std::ofstream outFile(envFile);
-        outFile << apiKey;
-        outFile.close();
-    }
-    else if (choice == 3)
-    {
-        std::ofstream outFile(envFile);
-        outFile.close();
-        std::cout << "API Key removed.\n";
-    }
-}
-
-// Api call to openAI
 std::string sendToChatGPT(const std::string &prompt, const std::string &apiKey, const std::string &personality)
 {
     const std::string apiUrl = "https://api.openai.com/v1/chat/completions";
@@ -249,7 +176,8 @@ std::string sendToChatGPT(const std::string &prompt, const std::string &apiKey, 
 
         json body = {
             {"model", "gpt-3.5-turbo"},
-            {"messages", messages}};
+            {"messages", messages},
+            {"temperature", 0.7}};
 
         std::string bodyString = body.dump();
 
@@ -272,30 +200,6 @@ std::string sendToChatGPT(const std::string &prompt, const std::string &apiKey, 
     return responseString;
 }
 
-// Add responses to message history
-void processResponse(const std::string &response, const std::string &prompt)
-{
-    try
-    {
-        auto jsonResponse = json::parse(response);
-        std::string content = jsonResponse["choices"][0]["message"]["content"];
-        std::cout << "\nChatGPT: " << content << std::endl;
-
-        // Store the new question-response pair in memory
-        messageHistory.push_back({prompt, content});
-
-        // Ensure only the last 10 messages are kept
-        if (messageHistory.size() > 10)
-        {
-            messageHistory.pop_front();
-        }
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error parsing response: " << e.what() << std::endl;
-    }
-}
-
 int main(int argc, char *argv[])
 {
     // Handle flags
@@ -309,7 +213,7 @@ int main(int argc, char *argv[])
         }
         else if (flag == "-key")
         {
-            manageAPIKey();
+            // Implement key management
             return 0;
         }
         else if (flag == "-customize")
@@ -332,8 +236,6 @@ int main(int argc, char *argv[])
     std::string gptName = readEnv("GPT_NAME", "ChatGPT");
     std::string personality = readEnv("PERSONALITY", "Friendly AI");
     std::string userName = readEnv("USER_NAME", "User");
-
-    std::cin.ignore(); // Clear input buffer
 
     // Start interaction
     std::cout << CYAN << userName << RESET << ": Hello! Type 'exit' to quit.\n";
