@@ -4,6 +4,7 @@
 #include <string>
 #include "nlohmann/json.hpp"
 #include <fstream>
+#include "cligpt.h"
 
 using json = nlohmann::json;
 
@@ -108,7 +109,7 @@ void customize()
                   << "1. ChatGPT's Name\n"
                   << "2. ChatGPT's Personality\n"
                   << "3. Your Name\n"
-                  << "4. Back to Main Menu\n"
+                  << "4. Continue to App\n"
                   << "Enter your choice: ";
         std::cin >> choice;
         std::cin.ignore();
@@ -125,9 +126,9 @@ void customize()
             std::string personality;
             while (true)
             {
-                std::cout << "Enter ChatGPT's new personality (max 100 characters): ";
+                std::cout << "Enter ChatGPT's new personality (max 200 characters): ";
                 std::getline(std::cin, personality);
-                if (personality.size() <= 100)
+                if (personality.size() <= 200)
                 {
                     writeEnv("PERSONALITY", personality);
                     break;
@@ -149,7 +150,12 @@ void customize()
             std::getline(std::cin, userName);
             writeEnv("USER_NAME", userName);
         }
-    } while (choice != 4);
+        else if (choice == 4)
+        {
+            mainLoop();
+        }
+
+    } while (1);
 }
 
 // Menu to manage the key
@@ -158,12 +164,14 @@ void manageAPIKey()
     std::string apiKey = readEnv("GPT_KEY");
 
     int choice;
-    std::cout << "API Key Management:\n";
-    std::cout << "1. View Key\n";
-    std::cout << "2. Update Key\n";
-    std::cout << "3. Remove Key\n";
-    std::cout << "Enter your choice: ";
+    std::cout << "API Key Management:\n"
+              << "1. View Key\n"
+              << "2. Update Key\n"
+              << "3. Remove Key\n"
+              << "4. Continue to App\n"
+              << "Enter your choice: ";
     std::cin >> choice;
+    std::cin.ignore();
 
     if (choice == 1)
     {
@@ -187,6 +195,10 @@ void manageAPIKey()
         writeEnv("GPT_KEY", "");
         std::cout << "API Key removed.\n";
     }
+    else if (choice == 4)
+    {
+        mainLoop();
+    }
 }
 
 // API call to OpenAI
@@ -205,6 +217,12 @@ std::string sendToChatGPT(const std::string &prompt, const std::string &apiKey, 
 
         // Create the JSON body, including the memory
         json messages;
+
+        // Add the system message to set the personality
+        messages.push_back({{"role", "system"},
+                            {"content", "You are " + personality + "."}});
+
+        // Add past conversation history
         for (const auto &entry : messageHistory)
         {
             messages.push_back({{"role", "user"}, {"content", entry.first}});
@@ -264,6 +282,60 @@ void processResponse(const std::string &response, const std::string &prompt, con
     }
 }
 
+void mainLoop()
+{
+    // Read values from .env or initialize defaults
+    if (!std::ifstream(".env"))
+    {
+        setupEnv();
+    }
+
+    std::string apiKey = readEnv("GPT_KEY");
+    std::string gptName = readEnv("GPT_NAME", "ChatGPT");
+    std::string userName = readEnv("USER_NAME", "User");
+    std::string personality = readEnv("PERSONALITY", "Friendly AI");
+
+    if (apiKey.empty())
+    {
+        std::cout << "No API Key found! Use './cligpt -key' to add one.\n";
+    }
+
+    std::cout << CYAN << "Welcome to " << gptName << "! " << "Enter 'exit' to quit.\n"
+              << RESET;
+    while (true)
+    {
+        std::cout << CYAN << "\n"
+                  << userName << ": " << RESET;
+        std::string prompt;
+        std::getline(std::cin, prompt);
+
+        if (prompt == "exit")
+        {
+            break;
+        }
+
+        std::string response = sendToChatGPT(prompt, apiKey, personality);
+        processResponse(response, prompt, gptName);
+    }
+    std::cout << CYAN << "Welcome to " << gptName << "! Enter 'exit' to quit.\n"
+              << RESET;
+    while (true)
+    {
+        std::cout << CYAN << "\n"
+                  << userName << ": " << RESET;
+        std::string prompt;
+        std::getline(std::cin, prompt);
+
+        if (prompt == "exit")
+        {
+            break;
+        }
+
+        std::string response = sendToChatGPT(prompt, apiKey, personality);
+        processResponse(response, prompt, gptName);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     // Handle flags
@@ -285,40 +357,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    // Read values from .env or initialize defaults
-    if (!std::ifstream(".env"))
-    {
-        setupEnv();
-    }
-
-    std::string apiKey = readEnv("GPT_KEY");
-    std::string gptName = readEnv("GPT_NAME", "ChatGPT");
-    std::string userName = readEnv("USER_NAME", "User");
-    std::string personality = readEnv("PERSONALITY", "Friendly AI");
-
-    if (apiKey.empty())
-    {
-        std::cout << "No API Key found! Use './cligpt -key' to add one.\n";
-        return 0;
-    }
-
-    std::cout << CYAN << "Welcome to " << gptName << "! " << "Enter 'exit' to quit.\n"
-              << RESET;
-    while (true)
-    {
-        std::cout << CYAN << "\n"
-                  << userName << ": " << RESET;
-        std::string prompt;
-        std::getline(std::cin, prompt);
-
-        if (prompt == "exit")
-        {
-            break;
-        }
-
-        std::string response = sendToChatGPT(prompt, apiKey, personality);
-        processResponse(response, prompt, gptName);
-    }
+    mainLoop();
 
     return 0;
 }
